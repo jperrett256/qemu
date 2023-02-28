@@ -30,7 +30,10 @@
  * SUCH DAMAGE.
  */
 
+#include <stdint.h>
+#include "qemu/log_instr.h"
 #include "trace_extra/memory_interceptor.hh"
+#define TARGET_FMT_lx "%016" PRIx64
 
 DynamorioTraceInterceptor::ThreadLocalState::ThreadLocalState(
     ThreadLocalStateArgs &)
@@ -88,6 +91,12 @@ void DynamorioTraceInterceptor::OnTracePacket(InterceptorContext context)
                             break;
                         }
                         mem_logfile.write((char *)&trace, sizeof(trace));
+                        fprintf(tag_tracing_output_file, "Data access [type: %s, size: %d, vaddr: " TARGET_FMT_lx "]\n",
+                            mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_LOAD ? "LOAD" :
+                            mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_CLOAD ? "CLOAD" :
+                            mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_STORE ? "STORE" :
+                            mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_CSTORE ? "CSTORE" : "UNKOWN",
+                            mem.size(), mem.addr());
                     }
                 }
             }

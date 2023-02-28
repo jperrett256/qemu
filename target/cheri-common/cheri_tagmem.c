@@ -458,6 +458,9 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
             env,
             "    Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 0\n",
             vaddr, qemu_ram_addr_from_host(host_addr), old_value);
+        fprintf(tag_tracing_output_file, "Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 0\n",
+            vaddr, qemu_ram_addr_from_host(host_addr), old_value);
+
     }
 
     tagblock_clear_tag_tagmem(tagmem, tag_offset);
@@ -489,11 +492,16 @@ void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
                 qemu_log_instr_extra(env, "    Cap Tag Write [" TARGET_FMT_lx
                     "/" RAM_ADDR_FMT "] %d -> 0\n", write_vaddr, addr,
                     tagblock_get_tag(tagblk, tagblk_index));
+                fprintf(tag_tracing_output_file, "Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 0\n",
+                    write_vaddr, addr, tagblock_get_tag(tagblk, tagblk_index));
             } else if (unlikely(env && qemu_log_instr_enabled(env))) {
                 qemu_log_instr_extra(env, "    Cap Tag ramaddr Write ["
                     RAM_ADDR_FMT "] %d -> 0\n", addr,
                     tagblock_get_tag(tagblk, tagblk_index));
+                fprintf(tag_tracing_output_file, "Cap Tag ramaddr Write [" RAM_ADDR_FMT "] %d -> 0\n",
+                    addr, tagblock_get_tag(tagblk, tagblk_index));
             }
+
             // changed |= tagblock_get_tag(tagblk, tagblk_index);
             tagblock_clear_tag(tagblk, tagblk_index);
         }
@@ -569,6 +577,13 @@ void *cheri_tag_set(CPUArchState *env, target_ulong vaddr, int reg,
         vaddr, qemu_ram_addr_from_host(host_addr),
         tagblock_get_tag_tagmem(tagmem, tag_offset));
 
+    if (qemu_log_instr_enabled(env))
+    {
+        fprintf(tag_tracing_output_file, "Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 1\n",
+            vaddr, qemu_ram_addr_from_host(host_addr),
+            tagblock_get_tag_tagmem(tagmem, tag_offset));
+    }
+
     tagblock_set_tag_tagmem(tagmem, tag_offset);
     return host_addr;
 }
@@ -613,6 +628,12 @@ bool cheri_tag_get(CPUArchState *env, target_ulong vaddr, int reg,
     qemu_maybe_log_instr_extra(
         env, "    Cap Tag Read [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] -> %d\n",
         vaddr, qemu_ram_addr_from_host(host_addr), result);
+
+    if (qemu_log_instr_enabled(env))
+    {
+        fprintf(tag_tracing_output_file, "Cap Tag Read [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] -> %d\n",
+            vaddr, qemu_ram_addr_from_host(host_addr), result);
+    }
     return result;
 }
 
