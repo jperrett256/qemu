@@ -483,19 +483,8 @@ static void qemu_log_entry_destroy(gpointer data)
  * be changed at runtime.
  */
 
-FILE * tag_tracing_output_file;
-
-static void close_tag_tracing_output_file()
-{
-    fclose(tag_tracing_output_file);
-}
-
 void qemu_log_instr_init(CPUState *cpu)
 {
-    // TODO assumes one cpu here (move elsewhere then?)
-    tag_tracing_output_file = fopen("/mnt/data/output/tag_trace.bin", "wb");
-    atexit(close_tag_tracing_output_file);
-
     cpu_log_instr_state_t *cpulog = &cpu->log_state;
     GArray *entry_ring = g_array_sized_new(false, true, sizeof(cpu_log_entry_t),
                                            reset_entry_buffer_size);

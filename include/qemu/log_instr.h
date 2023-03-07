@@ -32,7 +32,6 @@
 
 #pragma once
 #include <glib.h>
-#include <stdio.h>
 
 /*
  * CPU-independant instruction logging configuration helpers.
@@ -70,9 +69,6 @@ typedef enum {
 } qemu_log_instr_backend_t;
 
 extern qemu_log_instr_backend_t qemu_log_instr_backend;
-
-
-extern FILE * tag_tracing_output_file;
 
 /*
  * CPU mode. This unifies the logging codes for CPU mode switches.

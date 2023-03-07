@@ -55,6 +55,7 @@
 #include "trace_extra/guest_context_tracker.hh"
 
 #include "trace_extra/memory_interceptor.hh"
+#include "trace_extra/tag_tracing.h"
 
 PERFETTO_TRACK_EVENT_STATIC_STORAGE();
 
@@ -71,7 +72,8 @@ std::unique_ptr<perfetto::TracingSession> session;
 fs::path logfile("qemu_trace.pb");
 
 /* perfetto interceptor trace file */
-string mem_logfile_name = "mem_access.trace.gz";
+string mem_logfile_name = "mem_trace.gz";
+string dbg_logfile_name = "mem_trace_dbg.txt";
 
 /* enable perfetto interceptor */
 bool enable_interceptor = false;
@@ -134,6 +136,8 @@ bool perfetto_start_tracing(void)
     perfetto::TrackEvent::Register();
 
     if (enable_interceptor) {
+        tag_tracing_dbg_logfile = fopen(dbg_logfile_name.c_str(), "wb");
+
         DynamorioTraceInterceptor::mem_logfile.push(io::gzip_compressor());
         DynamorioTraceInterceptor::mem_logfile.push(
             io::file_descriptor_sink(mem_logfile_name));
@@ -229,6 +233,7 @@ void perfetto_tracing_stop(void)
         DynamorioTraceInterceptor::mem_logfile.write((char *)&footer,
                                                      sizeof(footer));
         io::close(DynamorioTraceInterceptor::mem_logfile);
+        fclose(tag_tracing_dbg_logfile);
     }
 }
 
@@ -518,7 +523,8 @@ qemu_log_instr_perfetto_conf_categories(const char *category_str)
 
 extern "C" void qemu_log_instr_perfetto_interceptor_logfile(const char *name)
 {
-    mem_logfile_name = name;
+    mem_logfile_name = std::string(name) + ".gz";
+    dbg_logfile_name = std::string(name) + "_dbg.txt";
 }
 
 extern "C" void qemu_log_instr_perfetto_enable_interceptor()
