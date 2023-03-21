@@ -15,7 +15,7 @@
 #define TARGET_FMT_lx "%016" PRIx64
 #endif
 
-#define TAG_TRACING_DBG_LOG
+// #define TAG_TRACING_DBG_LOG
 
 enum tag_tracing_type_t
 {
@@ -39,6 +39,10 @@ struct tag_tracing_entry_t
 EXTERN_C
 extern FILE * tag_tracing_dbg_logfile;
 
+void tag_tracing_init(const char * text_log_filename);
+void tag_tracing_quit(void);
+
+void tag_tracing_end_instr(void);
 void tag_tracing_cap_read(uintptr_t vaddr, uintptr_t haddr);
 void tag_tracing_cap_write(uint8_t tag_value, uintptr_t vaddr, uintptr_t haddr);
 void tag_tracing_emit_entry(uint8_t type, uint16_t size, uintptr_t vaddr);

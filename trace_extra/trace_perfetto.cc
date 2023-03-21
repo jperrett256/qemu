@@ -136,7 +136,7 @@ bool perfetto_start_tracing(void)
     perfetto::TrackEvent::Register();
 
     if (enable_interceptor) {
-        tag_tracing_dbg_logfile = fopen(dbg_logfile_name.c_str(), "wb");
+        tag_tracing_init(dbg_logfile_name.c_str());
 
         DynamorioTraceInterceptor::mem_logfile.push(io::gzip_compressor());
         DynamorioTraceInterceptor::mem_logfile.push(
@@ -233,7 +233,7 @@ void perfetto_tracing_stop(void)
         DynamorioTraceInterceptor::mem_logfile.write((char *)&footer,
                                                      sizeof(footer));
         io::close(DynamorioTraceInterceptor::mem_logfile);
-        fclose(tag_tracing_dbg_logfile);
+        tag_tracing_quit();
     }
 }
 

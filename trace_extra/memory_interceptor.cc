@@ -50,7 +50,11 @@ void DynamorioTraceInterceptor::OnTracePacket(InterceptorContext context)
             perfetto::protos::pbzero::QEMUEventInfo::Decoder qemu(track_event.qemu());
             if (qemu.has_instr()) {
                 perfetto::protos::pbzero::QEMULogEntry::Decoder instr(qemu.instr());
+
+#ifdef TAG_TRACING_DBG_LOG
                 fprintf(tag_tracing_dbg_logfile, "INSTRUCTION BOUNDARY\n");
+#endif
+
                 if (instr.has_pc() && instr.has_opcode_obj()) {
                     perfetto::protos::pbzero::Opcode::Decoder opcode(instr.opcode_obj());
 
@@ -109,6 +113,8 @@ void DynamorioTraceInterceptor::OnTracePacket(InterceptorContext context)
                         tag_tracing_emit_entry(entry_type, mem.size(), mem.addr());
                     }
                 }
+
+                tag_tracing_end_instr();
             }
         }
     }
