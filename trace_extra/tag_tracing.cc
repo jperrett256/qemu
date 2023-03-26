@@ -29,10 +29,10 @@ struct stats_t
 
 static stats_t dbg_stats = {0};
 
-// doing things like this to make sure that instructions come before corresponding memory accesses in all circumstances
-static uint8_t cap_write_tag_value;
+// NOTE capability information is taken from cheri_tagmem before corresponding instruction is traced
+static uint8_t cap_access_tag_value;
 static uintptr_t cap_access_vaddr;
-static uintptr_t cap_access_haddr;
+static uintptr_t cap_access_paddr;
 
 static void tag_tracing_log_error(const char * error_string)
 {
@@ -78,37 +78,46 @@ void tag_tracing_end_instr(void)
 {
     if (unlikely(dbg_have_cap_write || dbg_have_cap_read))
     {
-        if (dbg_have_cap_write) tag_tracing_log_error("Unconsumed cap write in last instruction.");
-        if (dbg_have_cap_read) tag_tracing_log_error("Unconsumed cap read in last instruction.");
+        if (dbg_have_cap_write)
+        {
+            dbg_stats.num_impossible_errors++;
+            tag_tracing_log_error("Unconsumed cap write in last instruction.");
+        }
+        if (dbg_have_cap_read)
+        {
+            dbg_stats.num_impossible_errors++;
+            tag_tracing_log_error("Unconsumed cap read in last instruction.");
+        }
     }
 
     dbg_have_cap_read = false;
     dbg_have_cap_write = false;
 }
 
-void tag_tracing_cap_read(uintptr_t vaddr, uintptr_t haddr)
+void tag_tracing_cap_read(uint8_t tag_value, uintptr_t vaddr, uintptr_t paddr)
 {
     if (unlikely(dbg_have_cap_write || dbg_have_cap_read))
     {
         tag_tracing_log_error("Storing cap read data when unconsumed cap access data exists.");
     }
 
+    cap_access_tag_value = tag_value;
     cap_access_vaddr = vaddr;
-    cap_access_haddr = haddr;
+    cap_access_paddr = paddr;
 
     dbg_have_cap_read = true;
 }
 
-void tag_tracing_cap_write(uint8_t tag_value, uintptr_t vaddr, uintptr_t haddr)
+void tag_tracing_cap_write(uint8_t tag_value, uintptr_t vaddr, uintptr_t paddr)
 {
     if (unlikely(dbg_have_cap_write || dbg_have_cap_read))
     {
         tag_tracing_log_error("Storing cap write data when unconsumed cap access data exists.");
     }
 
-    cap_write_tag_value = tag_value;
+    cap_access_tag_value = tag_value;
     cap_access_vaddr = vaddr;
-    cap_access_haddr = haddr;
+    cap_access_paddr = paddr;
 
     dbg_have_cap_write = true;
 }
@@ -130,6 +139,8 @@ void tag_tracing_emit_entry(uint8_t type, uint16_t size, uintptr_t vaddr)
         {
             tag_tracing_log_error("Missing cap read info for CLOAD.");
 
+            trace_entry.tag_value = TAG_TRACING_TAG_UNKNOWN;
+
             // NOTE including in trace anyway
             dbg_stats.num_CLOADs_missing_cap_info++;
         }
@@ -145,7 +156,8 @@ void tag_tracing_emit_entry(uint8_t type, uint16_t size, uintptr_t vaddr)
                 return;
             }
 
-            trace_entry.haddr = cap_access_haddr;
+            trace_entry.tag_value = cap_access_tag_value;
+            trace_entry.paddr = cap_access_paddr;
         }
 
         dbg_have_cap_read = false;
@@ -190,11 +202,11 @@ void tag_tracing_emit_entry(uint8_t type, uint16_t size, uintptr_t vaddr)
                 return;
             }
 
-            trace_entry.tag_value = cap_write_tag_value;
-            trace_entry.haddr = cap_access_haddr;
-            dbg_have_cap_write = false;
+            trace_entry.tag_value = cap_access_tag_value;
+            trace_entry.paddr = cap_access_paddr;
         }
 
+        dbg_have_cap_write = false;
     }
     else if (type == TAG_TRACING_TYPE_LOAD)
     {

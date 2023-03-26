@@ -648,7 +648,7 @@ bool cheri_tag_get(CPUArchState *env, target_ulong vaddr, int reg,
         fprintf(tag_tracing_dbg_logfile, "Cap Tag Read [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] -> %d\n",
             vaddr, qemu_ram_addr_from_host(host_addr), result);
 #endif
-        tag_tracing_cap_read(vaddr, qemu_ram_addr_from_host(host_addr));
+        tag_tracing_cap_read(result, vaddr, qemu_ram_addr_from_host(host_addr));
     }
     return result;
 }
