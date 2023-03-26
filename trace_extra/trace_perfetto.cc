@@ -142,33 +142,6 @@ bool perfetto_start_tracing(void)
         DynamorioTraceInterceptor::mem_logfile.push(
             io::file_descriptor_sink(mem_logfile_name));
 
-        // drcachesim needs a header in the file, so we create it here
-        trace_entry_t header{ .type = TRACE_TYPE_HEADER,
-                              .size = 0,
-                              .addr = TRACE_ENTRY_VERSION };
-        DynamorioTraceInterceptor::mem_logfile.write((char *)&header,
-                                                     sizeof(header));
-
-        // dub thread and pid as we only have one process one thread for now
-        trace_entry_t thread{ .type = TRACE_TYPE_THREAD, .size = 4, .addr = 1 };
-        trace_entry_t pid{ .type = TRACE_TYPE_PID, .size = 4, .addr = 1 };
-
-        // dub timestamp and cpuid
-        trace_entry_t timestamp{ .type = TRACE_TYPE_MARKER,
-                                 .size = TRACE_MARKER_TYPE_TIMESTAMP,
-                                 .addr = 0 };
-        trace_entry_t cpuid{ .type = TRACE_TYPE_MARKER,
-                             .size = TRACE_MARKER_TYPE_CPU_ID,
-                             .addr = 0 };
-
-        DynamorioTraceInterceptor::mem_logfile.write((char *)&thread,
-                                                     sizeof(thread));
-        DynamorioTraceInterceptor::mem_logfile.write((char *)&pid, sizeof(pid));
-        DynamorioTraceInterceptor::mem_logfile.write((char *)&timestamp,
-                                                     sizeof(timestamp));
-        DynamorioTraceInterceptor::mem_logfile.write((char *)&cpuid,
-                                                     sizeof(cpuid));
-
         perfetto::InterceptorDescriptor interceptor_desc;
         interceptor_desc.set_name("console");
         DynamorioTraceInterceptor::Register(interceptor_desc);
@@ -225,13 +198,6 @@ void perfetto_tracing_stop(void)
     session->FlushBlocking();
     session->StopBlocking();
     if (enable_interceptor) {
-        // add footer to tracing file
-        trace_entry_t footer;
-        footer.type = TRACE_TYPE_FOOTER;
-        footer.size = 0;
-        footer.addr = 0;
-        DynamorioTraceInterceptor::mem_logfile.write((char *)&footer,
-                                                     sizeof(footer));
         io::close(DynamorioTraceInterceptor::mem_logfile);
         tag_tracing_quit();
     }
