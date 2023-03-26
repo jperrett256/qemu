@@ -17,6 +17,18 @@
 
 // #define TAG_TRACING_DBG_LOG
 
+enum tag_tracing_tag_value_t
+{
+    TAG_TRACING_TAG_CLEARED,
+    TAG_TRACING_TAG_SET,
+    TAG_TRACING_TAG_UNKNOWN
+};
+
+#ifdef __cplusplus
+static_assert(TAG_TRACING_TAG_CLEARED == 0, "cleared tag should be 0");
+static_assert(TAG_TRACING_TAG_SET == 1, "set tag should be 1");
+#endif
+
 enum tag_tracing_type_t
 {
     TAG_TRACING_TYPE_INSTR,
