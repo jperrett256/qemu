@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdio.h>
-#include <stdint.h>
+#include <inttypes.h>
 
 #ifdef __cplusplus
 #define EXTERN_C extern "C" {

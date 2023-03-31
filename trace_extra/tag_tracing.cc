@@ -24,6 +24,7 @@ struct stats_t
     uint64_t num_CLOADs_missing_cap_info;
     uint64_t num_CSTOREs_missing_cap_info;
 
+    uint64_t num_atomic_ops;
     uint64_t num_impossible_errors;
 };
 
@@ -60,6 +61,7 @@ static void tag_tracing_print_statistics(void)
     fprintf(tag_tracing_dbg_logfile, "\tSTOREs missing capability information: %lu\n", dbg_stats.num_STOREs_missing_cap_info);
     fprintf(tag_tracing_dbg_logfile, "\tCLOADs missing capability information: %lu\n", dbg_stats.num_CLOADs_missing_cap_info);
     fprintf(tag_tracing_dbg_logfile, "\tCSTOREs missing capability information: %lu\n", dbg_stats.num_CSTOREs_missing_cap_info);
+    fprintf(tag_tracing_dbg_logfile, "\tAtomic operations: %lu\n", dbg_stats.num_atomic_ops);
     fprintf(tag_tracing_dbg_logfile, "\tImpossible errors (supposedly): %lu\n", dbg_stats.num_impossible_errors);
 }
 
@@ -215,7 +217,9 @@ void tag_tracing_emit_entry(uint8_t type, uint16_t size, uintptr_t vaddr)
         if (unlikely(dbg_have_cap_write || dbg_have_cap_read))
         {
             // NOTE this only appears to happen for atomic instructions, which both read and write
-            // TODO could add hardware address in there if we wanted
+            dbg_stats.num_atomic_ops++;
+
+            // TODO could add hardware address in there if we wanted (TODO might it actually be an issue if we don't?)
             tag_tracing_log_warning("Found cap access info for instruction with LOAD.");
         }
     }

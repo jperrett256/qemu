@@ -442,6 +442,14 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
         // All tags for this page are zero -> no need to invalidate. We also
         // couldn't invalidate if we wanted to since ALL_ZERO_TAGBLK is not a
         // valid pointer but a magic constant.
+        if (qemu_log_instr_enabled(env))
+        {
+#ifdef TAG_TRACING_DBG_LOG
+            fprintf(tag_tracing_dbg_logfile, "Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] 0 -> 0\n",
+                vaddr, qemu_ram_addr_from_host(host_addr));
+#endif
+            tag_tracing_cap_write(0, vaddr, qemu_ram_addr_from_host(host_addr));
+        }
         return host_addr;
     }
 
