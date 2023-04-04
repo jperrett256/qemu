@@ -62,13 +62,11 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
     {
         target_ulong pc = entry->pc;
 
-        // TODO causes some RCU related assertion to fail
-        // int instr_mmu_idx = cpu_mmu_index(env, true);
-        // void * instr_host_addr = probe_access(env, pc, 1, MMU_INST_FETCH, instr_mmu_idx, pc);
-        // ram_addr_t instr_paddr = instr_host_addr ? qemu_ram_addr_from_host(instr_host_addr) : 0;
-        ram_addr_t instr_paddr = 0; // TODO
+        MemTxAttrs attrs_instr;
+        hwaddr instr_haddr = cpu_get_phys_page_attrs_debug(env_cpu(env), pc & TARGET_PAGE_MASK, &attrs_instr);
+        if (instr_haddr != -1) instr_haddr += pc & ~TARGET_PAGE_MASK;
 
-        fprintf(output_dbg_file, "Instruction [ pc: " TARGET_FMT_lx ", paddr: " RAM_ADDR_FMT ", opcode: ", pc, instr_paddr);
+        fprintf(output_dbg_file, "Instruction [ pc: " TARGET_FMT_lx ", hwaddr: %" HWADDR_PRIx ", opcode: ", pc, instr_haddr);
         for (int64_t i = 0; i < entry->insn_size; i++)
         {
             fprintf(output_dbg_file, "%02hhx", (uint8_t) entry->insn_bytes[i]);
@@ -129,8 +127,8 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
             ram_addr_t paddr = host_addr ? qemu_ram_addr_from_host(host_addr) : 0;
 
             // TODO is the hwaddr what we actually want (vs ram addr)? why are the values >2GiB (memory of VM)?
-            int64_t mr_haddr = 0;
-            int64_t haddr = 0;
+            hwaddr mr_haddr = 0;
+            hwaddr haddr = 0;
             if (host_addr)
             {
                 ram_addr_t offset;
@@ -139,10 +137,14 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
                 mr_haddr = mr->addr;
             }
 
+            MemTxAttrs attrs;
+            hwaddr haddr2 = cpu_get_phys_page_attrs_debug(env_cpu(env), vaddr & TARGET_PAGE_MASK, &attrs);
+            if (haddr2 != -1) haddr2 += vaddr & ~TARGET_PAGE_MASK;
+
             fprintf(output_dbg_file,
                 "Memory Access [ type: %s, size: %u, \n"
-                "\tvaddr: " TARGET_FMT_lx ", ram addr: " RAM_ADDR_FMT ", mem region hwaddr: " TARGET_FMT_plx ", hwaddr: " TARGET_FMT_plx " ]\n",
-                op_type_str, size, vaddr, paddr, mr_haddr, haddr);
+                "\tvaddr: " TARGET_FMT_lx ", ram addr: " RAM_ADDR_FMT ", mem region hwaddr: %" HWADDR_PRIx ", hwaddr: %" HWADDR_PRIx ", hwaddr2: %" HWADDR_PRIx " ]\n",
+                op_type_str, size, vaddr, paddr, mr_haddr, haddr, haddr2);
         }
     }
 }
