@@ -3769,6 +3769,10 @@ void qemu_init(int argc, char **argv, char **envp)
                 } else if (strcmp(optarg, "json") == 0) {
                     qemu_log_instr_set_backend(QEMU_LOG_INSTR_BACKEND_JSON);
 #endif
+#ifdef CONFIG_TRACE_DRCACHESIM
+                } else if (strcmp(optarg, "drcachesim") == 0) {
+                    qemu_log_instr_set_backend(QEMU_LOG_INSTR_BACKEND_DRCACHESIM);
+#endif
                 } else {
                     printf("Invalid choice for cheri-trace-format: '%s'\n", optarg);
                     exit(1);
@@ -3790,6 +3794,14 @@ void qemu_init(int argc, char **argv, char **envp)
 #ifdef CONFIG_TRACE_PROTOBUF
             case QEMU_OPTION_trace_protobuf_logfile:
                 qemu_log_instr_protobuf_conf_logfile(optarg);
+                break;
+#endif
+#ifdef CONFIG_TRACE_DRCACHESIM
+            case QEMU_OPTION_trace_drcachesim_tracefile:
+                qemu_log_instr_drcachesim_conf_tracefile(optarg);
+                break;
+            case QEMU_OPTION_trace_drcachesim_dbgfile:
+                qemu_log_instr_drcachesim_conf_dbgfile(optarg);
                 break;
 #endif
             case QEMU_OPTION_cheri_trace_buffer_size:

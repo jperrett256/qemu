@@ -131,6 +131,14 @@ static trace_backend_hooks_t trace_backends[] = {
 #else
     {0},
 #endif
+#ifdef CONFIG_TRACE_DRCACHESIM
+    { .init = init_drcachesim_backend,
+      .sync = NULL,
+      .emit_debug = NULL,
+      .emit_instr = emit_drcachesim_entry },
+#else
+    {0},
+#endif
 };
 
 /* Existing trace filters list, indexed by cpu_log_instr_filter_t */

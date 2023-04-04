@@ -4117,10 +4117,10 @@ SRST
 ERST
 
 DEF("cheri-trace-backend", HAS_ARG, QEMU_OPTION_cheri_trace_backend, \
-"-cheri-trace-backend [text|cvtrace|perfetto]     Select CHERI trace mode.\n", QEMU_ARCH_ALL)
+"-cheri-trace-backend [text|cvtrace|nop|perfetto|protobuf|drcachesim]     Select CHERI trace mode.\n", QEMU_ARCH_ALL)
 SRST
 ``-cheri-trace-backend type``
-    Set CHERI trace backend to <type> (text, cvtrace or perfetto)
+    Set CHERI trace backend to <type> (text, cvtrace, nop, perfetto, protobuf or drcachesim)
 ERST
 
 DEF("cheri-trace-perfetto-logfile", HAS_ARG, QEMU_OPTION_trace_perfetto_logfile, \
@@ -4159,6 +4159,22 @@ DEF("cheri-trace-protobuf-logfile", HAS_ARG, QEMU_OPTION_trace_protobuf_logfile,
 SRST
 ``-cheri-trace-protobuf-logfile [logfile]``
     Set protobuf trace output file.
+ERST
+
+DEF("cheri-trace-drcachesim-tracefile", HAS_ARG, QEMU_OPTION_trace_drcachesim_tracefile, \
+"-cheri-trace-drcachesim-tracefile [filepath]     \
+ Set output trace file for drcachesim traces, defaults to output_trace.gz.\n", QEMU_ARCH_ALL)
+SRST
+``-cheri-trace-drcachesim-tracefile [filepath]``
+    Set drcachesim trace output file.
+ERST
+
+DEF("cheri-trace-drcachesim-dbgfile", HAS_ARG, QEMU_OPTION_trace_drcachesim_dbgfile, \
+"-cheri-trace-drcachesim-dbgfile [filepath]     \
+ Set output text file for drcachesim trace debug info, defaults to output_dbg.txt.\n", QEMU_ARCH_ALL)
+SRST
+``-cheri-trace-drcachesim-dbgfile [filepath]``
+    Set drcachesim debug text output file.
 ERST
 
 DEF("cheri-trace-filters", HAS_ARG, QEMU_OPTION_cheri_trace_filters, \

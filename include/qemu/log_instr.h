@@ -66,6 +66,9 @@ typedef enum {
 #ifdef CONFIG_TRACE_JSON
     QEMU_LOG_INSTR_BACKEND_JSON = 5,
 #endif
+#ifdef CONFIG_TRACE_DRCACHESIM
+    QEMU_LOG_INSTR_BACKEND_DRCACHESIM = 6,
+#endif
 } qemu_log_instr_backend_t;
 
 extern qemu_log_instr_backend_t qemu_log_instr_backend;
@@ -232,6 +235,11 @@ void qemu_log_instr_perfetto_interceptor_logfile(const char *name);
 #ifdef CONFIG_TRACE_PROTOBUF
 void qemu_log_instr_protobuf_conf_logfile(const char *name);
 #endif /* CONFIG_TRACE_PROTOBUF  */
+
+#ifdef CONFIG_TRACE_DRCACHESIM
+void qemu_log_instr_drcachesim_conf_tracefile(const char *name);
+void qemu_log_instr_drcachesim_conf_dbgfile(const char *name);
+#endif
 
 #ifndef __cplusplus
 /* No visibility in the perfetto tracing backend */

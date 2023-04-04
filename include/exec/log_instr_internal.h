@@ -184,6 +184,10 @@ void init_json_backend(CPUArchState *env);
 void sync_json_backend(CPUArchState *env);
 void emit_json_entry(CPUArchState *env, cpu_log_entry_t *entry);
 #endif
+#ifdef CONFIG_TRACE_DRCACHESIM
+void init_drcachesim_backend(CPUArchState *env);
+void emit_drcachesim_entry(CPUArchState *env, cpu_log_entry_t *entry);
+#endif
 
 #ifdef CONFIG_DEBUG_TCG
 #define log_assert(x) assert((x))
