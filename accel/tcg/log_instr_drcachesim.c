@@ -92,8 +92,16 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
             if (paddr != -1) paddr += vaddr & ~TARGET_PAGE_MASK;
 
             fprintf(output_dbg_file,
-                "Memory Access [ type: %s, size: %u, vaddr: " TARGET_FMT_lx ", paddr: %" HWADDR_PRIx " ]\n",
+                "Memory Access [ type: %s, size: %u, vaddr: " TARGET_FMT_lx ", paddr: %" HWADDR_PRIx,
                 op_type_str, size, vaddr, paddr);
+#ifdef TARGET_CHERI
+            if (minfo->flags & LMI_CAP)
+            {
+                uint8_t tag = minfo->cap.cr_tag;
+                fprintf(output_dbg_file, ", tag: %d", tag);
+            }
+#endif
+            fprintf(output_dbg_file, " ]\n");
         }
     }
 }
