@@ -114,16 +114,22 @@ static trace_backend_hooks_t trace_backends[] = {
       .sync = sync_perfetto_backend,
       .emit_debug = emit_perfetto_debug,
       .emit_instr = emit_perfetto_entry },
+#else
+    {0},
 #endif
 #ifdef CONFIG_TRACE_PROTOBUF
     { .init = init_protobuf_backend,
       .sync = sync_protobuf_backend,
       .emit_instr = emit_protobuf_entry },
+#else
+    {0},
 #endif
 #ifdef CONFIG_TRACE_JSON
     { .init = init_json_backend,
       .sync = sync_json_backend,
       .emit_instr = emit_json_entry },
+#else
+    {0},
 #endif
 };
 
