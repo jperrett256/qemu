@@ -107,7 +107,7 @@ void DynamorioTraceInterceptor::OnTracePacket(InterceptorContext context)
                             mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_LOAD ? "LOAD" :
                             mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_CLOAD ? "CLOAD" :
                             mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_STORE ? "STORE" :
-                            mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_CSTORE ? "CSTORE" : "UNKOWN",
+                            mem.op() == perfetto::protos::pbzero::QEMULogEntryMem_MemOp_CSTORE ? "CSTORE" : "UNKNOWN",
                             mem.size(), mem.addr());
 #endif
                         tag_tracing_emit_entry(entry_type, mem.size(), mem.addr());
