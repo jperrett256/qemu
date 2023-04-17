@@ -47,6 +47,7 @@ struct stats_t
     uint64_t num_exceptions;
     uint64_t num_mode_switches;
     uint64_t num_atomic_ops;
+    uint64_t num_paddrs_equal_vaddrs;
     uint64_t num_impossible_errors;
 };
 
@@ -75,28 +76,28 @@ static void tag_tracing_print_statistics(FILE * output_file)
     fprintf(output_file, "\tExceptions (synchronous/asynchronous): %lu\n", dbg_stats.num_exceptions);
     fprintf(output_file, "\tCPU mode switches: %lu\n", dbg_stats.num_mode_switches);
     fprintf(output_file, "\tAtomic operations: %lu\n", dbg_stats.num_atomic_ops);
+    fprintf(output_file, "\tCases where paddr == vaddr: %lu\n", dbg_stats.num_paddrs_equal_vaddrs);
     fprintf(output_file, "\tImpossible errors (supposedly): %lu\n", dbg_stats.num_impossible_errors);
 }
 
 
-/* TODO import from header? */
-enum tag_tracing_type_t
+enum custom_trace_type_t
 {
-    TAG_TRACING_TYPE_INSTR,
-    TAG_TRACING_TYPE_LOAD,
-    TAG_TRACING_TYPE_STORE,
-    TAG_TRACING_TYPE_CLOAD,
-    TAG_TRACING_TYPE_CSTORE,
+    CUSTOM_TRACE_TYPE_INSTR,
+    CUSTOM_TRACE_TYPE_LOAD,
+    CUSTOM_TRACE_TYPE_STORE,
+    CUSTOM_TRACE_TYPE_CLOAD,
+    CUSTOM_TRACE_TYPE_CSTORE,
 };
 
-typedef struct tag_tracing_entry_t tag_tracing_entry_t;
-struct tag_tracing_entry_t
+typedef struct custom_trace_entry_t custom_trace_entry_t;
+struct custom_trace_entry_t
 {
     uint8_t type;
-    uint8_t tag;
+    uint8_t tag; // ignore for LOADs
     uint16_t size;
-    uint64_t vaddr;
-    uint64_t paddr;
+    uintptr_t vaddr; // only for reconstructing the minority of missing paddrs
+    uintptr_t paddr;
 };
 
 
@@ -137,6 +138,15 @@ void init_drcachesim_backend(CPUArchState * env)
 }
 
 
+// NOTE can get this information by running dmesg within QEMU
+#define MEMORY_SIZE (2 * 1024LL*1024*1024)
+#define BASE_PADDR 0x80000000
+
+static bool check_paddr_valid(uint64_t paddr)
+{
+    return paddr >= BASE_PADDR && paddr < BASE_PADDR + MEMORY_SIZE;
+}
+
 static inline uint64_t get_paddr(CPUArchState * env, uint64_t vaddr)
 {
     MemTxAttrs attrs;
@@ -150,7 +160,7 @@ static void emit_trace_entry(uint8_t type, uint16_t size, uint64_t vaddr, uint64
 {
     dbg_stats.num_entries_total++;
 
-    tag_tracing_entry_t trace_entry = {0};
+    custom_trace_entry_t trace_entry = {0};
     trace_entry.type = type;
     trace_entry.tag = tag;
     trace_entry.size = size;
@@ -168,7 +178,12 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
     if (entry->flags & LI_FLAG_HAS_INSTR_DATA)
     {
         target_ulong pc = entry->pc;
-        uint64_t instr_paddr = get_paddr(env, pc);
+
+        uint64_t instr_paddr = 0;
+        if ((entry->flags & LI_FLAG_MODE_SWITCH) == 0) instr_paddr = get_paddr(env, pc);
+
+        if (instr_paddr && !check_paddr_valid(instr_paddr)) dbg_stats.num_impossible_errors++;
+        if (instr_paddr == pc) dbg_stats.num_paddrs_equal_vaddrs++;
 
 #ifdef TAG_TRACING_DBG_LOG
         fprintf(output_dbg_file, "Instruction [ pc: " TARGET_FMT_lx ", paddr: " FMT_ADDR ", opcode: ", pc, instr_paddr);
@@ -195,7 +210,7 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
             if (entry->flags & LI_FLAG_INTR_MASK) dbg_stats.num_instructions_missing_paddr_also_exceptions++;
         }
 
-        emit_trace_entry(TAG_TRACING_TYPE_INSTR, entry->insn_size, pc, instr_paddr, 0);
+        emit_trace_entry(CUSTOM_TRACE_TYPE_INSTR, entry->insn_size, pc, instr_paddr, 0);
 
         if (entry->mem->len == 2) dbg_stats.num_atomic_ops++;
         if (entry->mem->len > 2) dbg_stats.num_impossible_errors++;
@@ -206,30 +221,35 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
 
             uint32_t size = memop_size(minfo->op);
             target_ulong vaddr = minfo->addr;
-            uint64_t paddr = get_paddr(env, vaddr);
+
+            uint64_t paddr = 0;
+            if ((entry->flags & LI_FLAG_MODE_SWITCH) == 0) paddr = get_paddr(env, vaddr);
+
+            if (paddr && !check_paddr_valid(paddr)) dbg_stats.num_impossible_errors++;
+            if (paddr == vaddr) dbg_stats.num_paddrs_equal_vaddrs++;
 
             uint16_t op_type;
             switch (minfo->flags) {
                 case LMI_LD:
-                    op_type = TAG_TRACING_TYPE_LOAD;
+                    op_type = CUSTOM_TRACE_TYPE_LOAD;
 
                     dbg_stats.num_LOADs++;
                     if (!paddr) dbg_stats.num_LOADs_missing_paddr++;
                     break;
-                case LMI_LD | LMI_CAP:
-                    op_type = TAG_TRACING_TYPE_CLOAD;
-
-                    dbg_stats.num_CLOADs++;
-                    if (!paddr) dbg_stats.num_CLOADs_missing_paddr++;
-                    break;
                 case LMI_ST:
-                    op_type = TAG_TRACING_TYPE_STORE;
+                    op_type = CUSTOM_TRACE_TYPE_STORE;
 
                     dbg_stats.num_STOREs++;
                     if (!paddr) dbg_stats.num_STOREs_missing_paddr++;
                     break;
+                case LMI_LD | LMI_CAP:
+                    op_type = CUSTOM_TRACE_TYPE_CLOAD;
+
+                    dbg_stats.num_CLOADs++;
+                    if (!paddr) dbg_stats.num_CLOADs_missing_paddr++;
+                    break;
                 case LMI_ST | LMI_CAP:
-                    op_type = TAG_TRACING_TYPE_CSTORE;
+                    op_type = CUSTOM_TRACE_TYPE_CSTORE;
 
                     dbg_stats.num_CSTOREs++;
                     if (!paddr) dbg_stats.num_CSTOREs_missing_paddr++;
