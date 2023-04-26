@@ -48,6 +48,7 @@ struct stats_t
     uint64_t num_mode_switches;
     uint64_t num_atomic_ops;
     uint64_t num_paddrs_equal_vaddrs;
+    uint64_t num_attempted_translations_failed;
     uint64_t num_impossible_errors;
 };
 
@@ -77,6 +78,7 @@ static void tag_tracing_print_statistics(FILE * output_file)
     fprintf(output_file, "\tCPU mode switches: %lu\n", dbg_stats.num_mode_switches);
     fprintf(output_file, "\tAtomic operations: %lu\n", dbg_stats.num_atomic_ops);
     fprintf(output_file, "\tCases where paddr == vaddr: %lu\n", dbg_stats.num_paddrs_equal_vaddrs);
+    fprintf(output_file, "\tCases where get_paddr failed: %lu\n", dbg_stats.num_attempted_translations_failed);
     fprintf(output_file, "\tImpossible errors (supposedly): %lu\n", dbg_stats.num_impossible_errors);
 }
 
@@ -180,7 +182,11 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
         target_ulong pc = entry->pc;
 
         uint64_t instr_paddr = 0;
-        if ((entry->flags & LI_FLAG_MODE_SWITCH) == 0) instr_paddr = get_paddr(env, pc);
+        if ((entry->flags & LI_FLAG_MODE_SWITCH) == 0)
+        {
+            instr_paddr = get_paddr(env, pc);
+            if (!instr_paddr) dbg_stats.num_attempted_translations_failed++;
+        }
 
         if (instr_paddr && !check_paddr_valid(instr_paddr)) dbg_stats.num_impossible_errors++;
         if (instr_paddr == pc) dbg_stats.num_paddrs_equal_vaddrs++;
@@ -223,7 +229,11 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
             target_ulong vaddr = minfo->addr;
 
             uint64_t paddr = 0;
-            if ((entry->flags & LI_FLAG_MODE_SWITCH) == 0) paddr = get_paddr(env, vaddr);
+            if ((entry->flags & LI_FLAG_MODE_SWITCH) == 0)
+            {
+                paddr = get_paddr(env, vaddr);
+                if (!paddr) dbg_stats.num_attempted_translations_failed++;
+            }
 
             if (paddr && !check_paddr_valid(paddr)) dbg_stats.num_impossible_errors++;
             if (paddr == vaddr) dbg_stats.num_paddrs_equal_vaddrs++;
