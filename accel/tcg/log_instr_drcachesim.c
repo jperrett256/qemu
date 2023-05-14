@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <inttypes.h>
-#include <zlib.h>
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
@@ -22,7 +21,7 @@
 // #define TAG_TRACING_DBG_LOG
 
 
-static gzFile output_trace_file;
+static FILE * output_trace_file;
 static FILE * output_dbg_file;
 
 
@@ -54,6 +53,8 @@ struct stats_t
     uint64_t num_paddrs_equal_vaddrs;
     uint64_t num_entries_missing_paddr;
     uint64_t num_entries_invalid_paddr;
+
+    uint64_t num_write_failures;
     uint64_t num_impossible_errors;
 };
 
@@ -62,7 +63,7 @@ static stats_t dbg_stats = {0};
 static void tag_tracing_print_statistics(void)
 {
     DBG_PRINT("Statistics:\n");
-    DBG_PRINT(INDENT4 "Total: %lu\n", dbg_stats.num_entries_total);
+    DBG_PRINT(INDENT4 "Total entries (excludes MMIO): %lu\n", dbg_stats.num_entries_total);
     DBG_PRINT("\n");
     DBG_PRINT(INDENT4 "Instructions: %lu\n", dbg_stats.num_instructions);
     DBG_PRINT(INDENT4 "LOADs: %lu\n", dbg_stats.num_LOADs);
@@ -88,6 +89,8 @@ static void tag_tracing_print_statistics(void)
     DBG_PRINT(INDENT4 "Cases where paddr == vaddr: %lu\n", dbg_stats.num_paddrs_equal_vaddrs);
     DBG_PRINT(INDENT4 "Cases where paddr missing: %lu\n", dbg_stats.num_entries_missing_paddr);
     DBG_PRINT(INDENT4 "Cases where paddr invalid (includes missing): %lu\n", dbg_stats.num_entries_invalid_paddr);
+    DBG_PRINT("\n");
+    DBG_PRINT(INDENT4 "Write failures: %lu\n", dbg_stats.num_write_failures);
     DBG_PRINT(INDENT4 "Impossible errors (supposedly): %lu\n", dbg_stats.num_impossible_errors);
 }
 
@@ -115,7 +118,7 @@ struct custom_trace_entry_t
 static void cleanup_drcachesim_backend(void)
 {
     if (output_trace_file)
-        gzclose(output_trace_file);
+        fclose(output_trace_file);
     if (output_dbg_file)
     {
         tag_tracing_print_statistics();
@@ -125,7 +128,7 @@ static void cleanup_drcachesim_backend(void)
 
 void qemu_log_instr_drcachesim_conf_tracefile(const char * name)
 {
-    output_trace_file = gzopen(name, "wb");
+    output_trace_file = fopen(name, "wb");
 }
 
 void qemu_log_instr_drcachesim_conf_dbgfile(const char * name)
@@ -138,12 +141,9 @@ void init_drcachesim_backend(CPUArchState * env)
     assert(env_cpu(env)->nr_cores == 1 && env_cpu(env)->nr_threads == 1);
 
     if (output_trace_file == NULL)
-        output_trace_file = gzopen("output_trace.gz", "wb");
+        output_trace_file = fopen("output_trace.gz", "wb");
     if (output_dbg_file == NULL)
         output_dbg_file = fopen("output_dbg.txt", "w");
-
-    // TODO could switch to w+b file mode, but then should have a header in trace to separate runs?
-    // TODO could have it check we aren't overwriting traces?
 
     atexit(cleanup_drcachesim_backend);
 }
@@ -169,7 +169,8 @@ static void emit_trace_entry(uint8_t type, uint16_t size, uint64_t vaddr, uint64
     trace_entry.vaddr = vaddr;
     trace_entry.paddr = paddr;
 
-    gzwrite(output_trace_file, &trace_entry, sizeof(trace_entry));
+    size_t bytes_written = fwrite(&trace_entry, 1, sizeof(trace_entry), output_trace_file);
+    if (bytes_written != sizeof(trace_entry)) dbg_stats.num_write_failures++;
 }
 
 static bool is_paddr_mmio(CPUArchState * env, hwaddr paddr, hwaddr size, bool is_write)
@@ -241,7 +242,6 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
         }
         else
         {
-            // TODO add MMIO flag instead of omitting from trace?
             emit_trace_entry(CUSTOM_TRACE_TYPE_INSTR, entry->insn_size, pc, instr_paddr, 0);
         }
 
@@ -315,7 +315,6 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
             }
             else
             {
-                // TODO add MMIO flag instead of omitting from trace?
                 emit_trace_entry(op_type, size, vaddr, paddr, tag);
             }
         }
