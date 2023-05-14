@@ -2336,6 +2336,8 @@ void address_space_cache_destroy(MemoryRegionCache *cache);
 IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
                                             bool is_write, MemTxAttrs attrs);
 
+bool memory_region_is_unassigned(MemoryRegion *mr);
+
 /* address_space_translate: translate an address range into an address space
  * into a MemoryRegion and an address range into that section.  Should be
  * called from an RCU critical section, to avoid that the last reference

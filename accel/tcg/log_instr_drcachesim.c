@@ -15,6 +15,8 @@
 #include "exec/exec-all.h"
 
 #define FMT_ADDR "%016" PRIx64
+#define INDENT4 "    "
+#define DBG_PRINT(...) fprintf(output_dbg_file, __VA_ARGS__)
 
 // TODO create user-set flag instead?
 // #define TAG_TRACING_DBG_LOG
@@ -44,6 +46,8 @@ struct stats_t
     uint64_t num_exceptions_also_mode_switches;
     uint64_t num_instructions_missing_paddr_also_exceptions;
 
+    uint64_t num_mmio_instr_accesses;
+    uint64_t num_mmio_data_accesses;
     uint64_t num_exceptions;
     uint64_t num_mode_switches;
     uint64_t num_atomic_ops;
@@ -55,33 +59,36 @@ struct stats_t
 
 static stats_t dbg_stats = {0};
 
-static void tag_tracing_print_statistics(FILE * output_file)
+static void tag_tracing_print_statistics(void)
 {
-    fprintf(output_file, "Statistics:\n");
-    fprintf(output_file, "\tTotal: %lu\n", dbg_stats.num_entries_total);
-    fprintf(output_file, "\n");
-    fprintf(output_file, "\tInstructions: %lu\n", dbg_stats.num_instructions);
-    fprintf(output_file, "\tLOADs: %lu\n", dbg_stats.num_LOADs);
-    fprintf(output_file, "\tSTOREs: %lu\n", dbg_stats.num_STOREs);
-    fprintf(output_file, "\tCLOADs: %lu\n", dbg_stats.num_CLOADs);
-    fprintf(output_file, "\tCSTOREs: %lu\n", dbg_stats.num_CSTOREs);
-    fprintf(output_file, "\n");
-    fprintf(output_file, "\tInstructions without paddr: %lu\n", dbg_stats.num_instructions_missing_paddr);
-    fprintf(output_file, "\tLOADs without paddr: %lu\n", dbg_stats.num_LOADs_missing_paddr);
-    fprintf(output_file, "\tSTOREs without paddr: %lu\n", dbg_stats.num_STOREs_missing_paddr);
-    fprintf(output_file, "\tCLOADs without paddr: %lu\n", dbg_stats.num_CLOADs_missing_paddr);
-    fprintf(output_file, "\tCSTOREs without paddr: %lu\n", dbg_stats.num_CSTOREs_missing_paddr);
-    fprintf(output_file, "\n");
-    fprintf(output_file, "\tExceptions that are also mode switches: %lu\n", dbg_stats.num_exceptions_also_mode_switches);
-    fprintf(output_file, "\tInstructions without paddr that are also exceptions: %lu\n", dbg_stats.num_instructions_missing_paddr_also_exceptions);
-    fprintf(output_file, "\n");
-    fprintf(output_file, "\tExceptions (synchronous/asynchronous): %lu\n", dbg_stats.num_exceptions);
-    fprintf(output_file, "\tCPU mode switches: %lu\n", dbg_stats.num_mode_switches);
-    fprintf(output_file, "\tAtomic operations: %lu\n", dbg_stats.num_atomic_ops);
-    fprintf(output_file, "\tCases where paddr == vaddr: %lu\n", dbg_stats.num_paddrs_equal_vaddrs);
-    fprintf(output_file, "\tCases where paddr missing: %lu\n", dbg_stats.num_entries_missing_paddr);
-    fprintf(output_file, "\tCases where paddr invalid (includes missing): %lu\n", dbg_stats.num_entries_invalid_paddr);
-    fprintf(output_file, "\tImpossible errors (supposedly): %lu\n", dbg_stats.num_impossible_errors);
+    DBG_PRINT("Statistics:\n");
+    DBG_PRINT(INDENT4 "Total: %lu\n", dbg_stats.num_entries_total);
+    DBG_PRINT("\n");
+    DBG_PRINT(INDENT4 "Instructions: %lu\n", dbg_stats.num_instructions);
+    DBG_PRINT(INDENT4 "LOADs: %lu\n", dbg_stats.num_LOADs);
+    DBG_PRINT(INDENT4 "STOREs: %lu\n", dbg_stats.num_STOREs);
+    DBG_PRINT(INDENT4 "CLOADs: %lu\n", dbg_stats.num_CLOADs);
+    DBG_PRINT(INDENT4 "CSTOREs: %lu\n", dbg_stats.num_CSTOREs);
+    DBG_PRINT("\n");
+    DBG_PRINT(INDENT4 "Instructions without paddr: %lu\n", dbg_stats.num_instructions_missing_paddr);
+    DBG_PRINT(INDENT4 "LOADs without paddr: %lu\n", dbg_stats.num_LOADs_missing_paddr);
+    DBG_PRINT(INDENT4 "STOREs without paddr: %lu\n", dbg_stats.num_STOREs_missing_paddr);
+    DBG_PRINT(INDENT4 "CLOADs without paddr: %lu\n", dbg_stats.num_CLOADs_missing_paddr);
+    DBG_PRINT(INDENT4 "CSTOREs without paddr: %lu\n", dbg_stats.num_CSTOREs_missing_paddr);
+    DBG_PRINT("\n");
+    DBG_PRINT(INDENT4 "Exceptions that are also mode switches: %lu\n", dbg_stats.num_exceptions_also_mode_switches);
+    DBG_PRINT(INDENT4 "Instructions without paddr that are also exceptions: %lu\n", dbg_stats.num_instructions_missing_paddr_also_exceptions);
+    DBG_PRINT("\n");
+    DBG_PRINT(INDENT4 "MMIO instruction fetches: %lu\n", dbg_stats.num_mmio_instr_accesses);
+    DBG_PRINT(INDENT4 "MMIO data accesses: %lu\n", dbg_stats.num_mmio_data_accesses);
+    DBG_PRINT("\n");
+    DBG_PRINT(INDENT4 "Exceptions (synchronous/asynchronous): %lu\n", dbg_stats.num_exceptions);
+    DBG_PRINT(INDENT4 "CPU mode switches: %lu\n", dbg_stats.num_mode_switches);
+    DBG_PRINT(INDENT4 "Atomic operations: %lu\n", dbg_stats.num_atomic_ops);
+    DBG_PRINT(INDENT4 "Cases where paddr == vaddr: %lu\n", dbg_stats.num_paddrs_equal_vaddrs);
+    DBG_PRINT(INDENT4 "Cases where paddr missing: %lu\n", dbg_stats.num_entries_missing_paddr);
+    DBG_PRINT(INDENT4 "Cases where paddr invalid (includes missing): %lu\n", dbg_stats.num_entries_invalid_paddr);
+    DBG_PRINT(INDENT4 "Impossible errors (supposedly): %lu\n", dbg_stats.num_impossible_errors);
 }
 
 
@@ -111,7 +118,7 @@ static void cleanup_drcachesim_backend(void)
         gzclose(output_trace_file);
     if (output_dbg_file)
     {
-        tag_tracing_print_statistics(output_dbg_file);
+        tag_tracing_print_statistics();
         fclose(output_dbg_file);
     }
 }
@@ -165,6 +172,28 @@ static void emit_trace_entry(uint8_t type, uint16_t size, uint64_t vaddr, uint64
     gzwrite(output_trace_file, &trace_entry, sizeof(trace_entry));
 }
 
+static bool is_paddr_mmio(CPUArchState * env, hwaddr paddr, hwaddr size, bool is_write)
+{
+    bool result = false;
+
+    hwaddr len = size;
+    hwaddr addr1;
+    MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+    rcu_read_lock();
+    MemoryRegion * mr = address_space_translate(env_cpu(env)->as, paddr, &addr1, &len, is_write, attrs);
+    if (len < size || !memory_access_is_direct(mr, is_write))
+    {
+        result = true;
+
+        if (memory_region_is_unassigned(mr)) dbg_stats.num_impossible_errors++;
+    }
+    rcu_read_unlock();
+
+
+    return result;
+}
+
+
 void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
 {
     assert(output_trace_file);
@@ -206,7 +235,15 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
             if (entry->flags & LI_FLAG_INTR_MASK) dbg_stats.num_instructions_missing_paddr_also_exceptions++;
         }
 
-        emit_trace_entry(CUSTOM_TRACE_TYPE_INSTR, entry->insn_size, pc, instr_paddr, 0);
+        if (instr_paddr != -1 && is_paddr_mmio(env, instr_paddr, entry->insn_size, false))
+        {
+            dbg_stats.num_mmio_instr_accesses++;
+        }
+        else
+        {
+            // TODO add MMIO flag instead of omitting from trace?
+            emit_trace_entry(CUSTOM_TRACE_TYPE_INSTR, entry->insn_size, pc, instr_paddr, 0);
+        }
 
         if (entry->mem->len == 2) dbg_stats.num_atomic_ops++;
         if (entry->mem->len > 2) dbg_stats.num_impossible_errors++;
@@ -272,7 +309,15 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
             fprintf(output_dbg_file, " ]\n");
 #endif
 
-            emit_trace_entry(op_type, size, vaddr, paddr, tag);
+            if (paddr != -1 && is_paddr_mmio(env, paddr, size, minfo->flags & LMI_ST))
+            {
+                dbg_stats.num_mmio_data_accesses++;
+            }
+            else
+            {
+                // TODO add MMIO flag instead of omitting from trace?
+                emit_trace_entry(op_type, size, vaddr, paddr, tag);
+            }
         }
     }
 }

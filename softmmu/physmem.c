@@ -556,6 +556,11 @@ iotlb_fail:
     return (IOMMUTLBEntry) {0};
 }
 
+bool memory_region_is_unassigned(MemoryRegion *mr)
+{
+    return mr == &io_mem_unassigned;
+}
+
 /* Called from RCU critical section */
 MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
                                  hwaddr *plen, bool is_write,
