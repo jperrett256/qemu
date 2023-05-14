@@ -193,7 +193,16 @@ static void emit_regdump_event(CPUArchState *env, cpu_log_entry_t *entry)
     g_array_append_val(entry->events, event);
 }
 
-static inline void emit_start_event(cpu_log_entry_t *entry, target_ulong pc)
+static inline hwaddr get_paddr(CPUArchState * env, uint64_t vaddr)
+{
+    MemTxAttrs attrs;
+    hwaddr paddr_base = cpu_get_phys_page_attrs_debug(env_cpu(env), vaddr & TARGET_PAGE_MASK, &attrs);
+    hwaddr paddr = paddr_base != -1 ? paddr_base + (vaddr & ~TARGET_PAGE_MASK) : -1;
+
+    return paddr;
+}
+
+static inline void emit_start_event(CPUArchState *env, cpu_log_entry_t *entry, target_ulong pc)
 {
     log_event_t event;
 
@@ -209,6 +218,7 @@ static inline void emit_start_event(cpu_log_entry_t *entry, target_ulong pc)
      * XXX-AM: Does this mean that we can do away with the state.pc field?
      */
     entry->pc = pc;
+    entry->paddr = get_paddr(env, pc);
 
     g_array_append_val(entry->events, event);
 }
@@ -364,7 +374,7 @@ static void do_cpu_loglevel_switch(CPUState *cpu, run_on_cpu_data data)
          * Note: the start event is emitted by the first instruction being
          * traced
          */
-        emit_start_event(entry, pc);
+        emit_start_event(env, entry, pc);
         emit_regdump_event(env, entry);
         QEMU_LOG_INSTR_INC_STAT(cpulog, trace_start);
     }
@@ -745,6 +755,7 @@ static inline void qemu_log_instr_mem_int(CPUArchState *env, target_ulong addr,
     m.flags = flags;
     m.op = get_memop(oi);
     m.addr = addr;
+    m.paddr = get_paddr(env, addr);
     m.value = value;
     g_array_append_val(entry->mem, m);
 }
@@ -778,6 +789,7 @@ static inline void qemu_log_instr_mem_cap(CPUArchState *env, target_ulong addr,
     m.flags = flags;
     m.op = 0;
     m.addr = addr;
+    m.paddr = get_paddr(env, addr);
     m.cap = *value;
     g_array_append_val(entry->mem, m);
 }
@@ -800,6 +812,7 @@ void qemu_log_instr(CPUArchState *env, target_ulong pc, const char *insn,
     cpu_log_entry_t *entry = get_cpu_log_entry(env);
 
     entry->pc = pc;
+    entry->paddr = get_paddr(env, pc);
     entry->insn_size = size;
     entry->flags |= LI_FLAG_HAS_INSTR_DATA;
     memcpy(entry->insn_bytes, insn, size);

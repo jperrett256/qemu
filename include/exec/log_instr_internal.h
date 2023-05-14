@@ -83,6 +83,7 @@ typedef struct cpu_log_entry {
     target_ulong intr_faultaddr;
 
     target_ulong pc;
+    hwaddr paddr;
     /* Generic instruction opcode buffer */
     int insn_size;
     char insn_bytes[TARGET_MAX_INSN_SIZE];
@@ -135,6 +136,7 @@ typedef struct log_meminfo {
     uint8_t flags;
     MemOp op;
     target_ulong addr;
+    hwaddr paddr;
     union {
         uint64_t value;
 #ifdef TARGET_CHERI

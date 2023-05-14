@@ -48,7 +48,8 @@ struct stats_t
     uint64_t num_mode_switches;
     uint64_t num_atomic_ops;
     uint64_t num_paddrs_equal_vaddrs;
-    uint64_t num_attempted_translations_failed;
+    uint64_t num_entries_missing_paddr;
+    uint64_t num_entries_invalid_paddr;
     uint64_t num_impossible_errors;
 };
 
@@ -78,7 +79,8 @@ static void tag_tracing_print_statistics(FILE * output_file)
     fprintf(output_file, "\tCPU mode switches: %lu\n", dbg_stats.num_mode_switches);
     fprintf(output_file, "\tAtomic operations: %lu\n", dbg_stats.num_atomic_ops);
     fprintf(output_file, "\tCases where paddr == vaddr: %lu\n", dbg_stats.num_paddrs_equal_vaddrs);
-    fprintf(output_file, "\tCases where get_paddr failed: %lu\n", dbg_stats.num_attempted_translations_failed);
+    fprintf(output_file, "\tCases where paddr missing: %lu\n", dbg_stats.num_entries_missing_paddr);
+    fprintf(output_file, "\tCases where paddr invalid (includes missing): %lu\n", dbg_stats.num_entries_invalid_paddr);
     fprintf(output_file, "\tImpossible errors (supposedly): %lu\n", dbg_stats.num_impossible_errors);
 }
 
@@ -149,15 +151,6 @@ static bool check_paddr_valid(uint64_t paddr)
     return paddr >= BASE_PADDR && paddr < BASE_PADDR + MEMORY_SIZE;
 }
 
-static inline uint64_t get_paddr(CPUArchState * env, uint64_t vaddr)
-{
-    MemTxAttrs attrs;
-    hwaddr paddr_base = cpu_get_phys_page_attrs_debug(env_cpu(env), vaddr & TARGET_PAGE_MASK, &attrs);
-    uint64_t paddr = paddr_base != -1 ? paddr_base + (vaddr & ~TARGET_PAGE_MASK) : 0;
-
-    return paddr;
-}
-
 static void emit_trace_entry(uint8_t type, uint16_t size, uint64_t vaddr, uint64_t paddr, uint8_t tag)
 {
     dbg_stats.num_entries_total++;
@@ -181,14 +174,11 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
     {
         target_ulong pc = entry->pc;
 
-        uint64_t instr_paddr = 0;
-        if ((entry->flags & LI_FLAG_MODE_SWITCH) == 0)
-        {
-            instr_paddr = get_paddr(env, pc);
-            if (!instr_paddr) dbg_stats.num_attempted_translations_failed++;
-        }
+        uint64_t instr_paddr = entry->paddr;
 
-        if (instr_paddr && !check_paddr_valid(instr_paddr)) dbg_stats.num_impossible_errors++;
+        if (instr_paddr == -1) dbg_stats.num_entries_missing_paddr++;
+        if (!check_paddr_valid(instr_paddr)) dbg_stats.num_entries_invalid_paddr++;
+        if (instr_paddr == -1 && !check_paddr_valid(instr_paddr)) dbg_stats.num_impossible_errors++;
         if (instr_paddr == pc) dbg_stats.num_paddrs_equal_vaddrs++;
 
 #ifdef TAG_TRACING_DBG_LOG
@@ -228,14 +218,11 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
             uint32_t size = memop_size(minfo->op);
             target_ulong vaddr = minfo->addr;
 
-            uint64_t paddr = 0;
-            if ((entry->flags & LI_FLAG_MODE_SWITCH) == 0)
-            {
-                paddr = get_paddr(env, vaddr);
-                if (!paddr) dbg_stats.num_attempted_translations_failed++;
-            }
+            uint64_t paddr = minfo->paddr;
 
-            if (paddr && !check_paddr_valid(paddr)) dbg_stats.num_impossible_errors++;
+            if (paddr == -1) dbg_stats.num_entries_missing_paddr++;
+            if (!check_paddr_valid(paddr)) dbg_stats.num_entries_invalid_paddr++;
+            if (paddr == -1 && !check_paddr_valid(paddr)) dbg_stats.num_impossible_errors++;
             if (paddr == vaddr) dbg_stats.num_paddrs_equal_vaddrs++;
 
             uint16_t op_type;
@@ -244,25 +231,25 @@ void emit_drcachesim_entry(CPUArchState * env, cpu_log_entry_t * entry)
                     op_type = CUSTOM_TRACE_TYPE_LOAD;
 
                     dbg_stats.num_LOADs++;
-                    if (!paddr) dbg_stats.num_LOADs_missing_paddr++;
+                    if (paddr == -1) dbg_stats.num_LOADs_missing_paddr++;
                     break;
                 case LMI_ST:
                     op_type = CUSTOM_TRACE_TYPE_STORE;
 
                     dbg_stats.num_STOREs++;
-                    if (!paddr) dbg_stats.num_STOREs_missing_paddr++;
+                    if (paddr == -1) dbg_stats.num_STOREs_missing_paddr++;
                     break;
                 case LMI_LD | LMI_CAP:
                     op_type = CUSTOM_TRACE_TYPE_CLOAD;
 
                     dbg_stats.num_CLOADs++;
-                    if (!paddr) dbg_stats.num_CLOADs_missing_paddr++;
+                    if (paddr == -1) dbg_stats.num_CLOADs_missing_paddr++;
                     break;
                 case LMI_ST | LMI_CAP:
                     op_type = CUSTOM_TRACE_TYPE_CSTORE;
 
                     dbg_stats.num_CSTOREs++;
-                    if (!paddr) dbg_stats.num_CSTOREs_missing_paddr++;
+                    if (paddr == -1) dbg_stats.num_CSTOREs_missing_paddr++;
                     break;
                 default:
                     assert(false && "Invalid meminfo flag");
